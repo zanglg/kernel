@@ -1,51 +1,58 @@
 
-TARGET := kernel
+TARGET    := kernel
 
-SRC_DIRS := src
-INC_DIRS := include
-OUT_DIRS := build
+SRC_DIRS  := src
+INC_DIRS  := include
+OUT_DIRS  := build
 
-IMAGE := $(OUT_DIRS)/$(TARGET)
-LINK_SCRIPT := $(SRC_DIRS)/$(TARGET).ld
+SRCS      := $(shell find $(SRC_DIRS) -name *.c -or -name *.S)
+OBJS      := $(SRCS:%=$(OUT_DIRS)/%.o)
 
-SRCS := $(shell find $(SRC_DIRS) -name *.c -or -name *.S)
-OBJS := $(SRCS:%=$(OUT_DIRS)/%.o)
+LINK_SRC  := $(SRC_DIRS)/$(TARGET).lds
+LINK_OUT  := $(OUT_DIRS)/$(TARGET).ld
 
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
-CC = aarch64-linux-gnu-gcc
-AS = aarch64-linux-gnu-gcc
-LD = aarch64-linux-gnu-ld
-OBJCOPY = aarch64-linux-gnu-objcopy
+CC         = aarch64-linux-gnu-gcc
+AS         = aarch64-linux-gnu-gcc
+CXX        = aarch64-linux-gnu-g++
+LD         = aarch64-linux-gnu-ld
+OBJCOPY    = aarch64-linux-gnu-objcopy
 
-CFLAGS = -nostdlib -nostartfiles -ffreestanding -mgeneral-regs-only \
-		 $(INC_FLAGS)
-ASFLAGS = $(INC_FLAGS)
-LDFLAGS = -T $(LINK_SCRIPT)
+CFLAGS    := -Wall -Werror -nostdlib -nostartfiles -ffreestanding -mgeneral-regs-only
+ASFLAGS   := -D__ASSEMBLY__
 
-all: $(IMAGE).img
-$(IMAGE).img: $(IMAGE).elf
-	$(OBJCOPY) $< -O binary $@
+all: $(OUT_DIRS)/$(TARGET)
+$(OUT_DIRS)/$(TARGET): make-build-dirs $(LINK_OUT) $(OBJS)
+	$(LD) -T $(LINK_OUT) $(OBJS) -o $@.elf
+	$(OBJCOPY) $@.elf -O binary $@
 
-$(IMAGE).elf: $(OBJS)
-	$(LD) $(LDFLAGS) $(OBJS) -o $@
+$(OUT_DIRS)/%.c.o: %.c
+	$(CC) $(CFLAGS) $(INC_FLAGS) -c $< -o $@
 
-$(OUT_DIRS)/%.o: %
-	@test -d $(OUT_DIRS) || mkdir -pm 755 $(OUT_DIRS)
-	@test -d $(@D) || mkdir -pm 755 $(@D)
-	$(CC) $(CFLAGS) -c $< -o $@
+$(OUT_DIRS)/%.S.o: %.S
+	$(CC) $(ASFLAGS) $(INC_FLAGS) -c $< -o $@
 
-.PHONY: clean run
+$(LINK_OUT): $(LINK_SRC)
+	$(CXX) $(INC_FLAGS) -E -x c -P $< -o $@
+
+define make-dir
+	@test -d $(1) || mkdir -pm 755 $(1)
+endef
+make-build-dirs:
+	$(call make-dir,$(OUT_DIRS))
+	$(foreach d,$(dir $(OBJS)),$(call make-dir,$(d)))
+
 clean:
-	$(RM) -r $(OUT_DIRS)
+	@$(RM) -r $(OUT_DIRS)
+	@echo "Build directory removed."
 
 run: all
 	@echo
 	@echo "Press Ctrl-A and then X to exit QEMU"
 	@echo
 	qemu-system-aarch64 \
-		-machine virt -cpu cortex-a53 \
-		-smp 4 -m 1024 \
-		-nographic -serial mon:stdio \
-		-kernel $(IMAGE).img
+		-machine virt -cpu cortex-a53 -smp 2 -m 1024 \
+		-nographic -serial mon:stdio -kernel $(OUT_DIRS)/$(TARGET)
 
+.PHONY: make-build-dirs clean run

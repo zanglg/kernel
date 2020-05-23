@@ -1,7 +1,9 @@
+#include <mem-map.h>
+
 SECTIONS
 {
-    /* qemu kernel load base address */
-	. = 0x40000000;
+	/* qemu kernel load base address */
+	. = VIRT_MEM;
 	.text : { *(.text) }
 	.data : { *(.data) }
 	.bss : { *(.bss) }
