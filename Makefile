@@ -28,20 +28,16 @@ $(OUT_DIRS)/$(TARGET): make-build-dirs $(LINK_OUT) $(OBJS)
 	$(OBJCOPY) $@.elf -O binary $@
 
 $(OUT_DIRS)/%.c.o: %.c
+	@test -d $(dir $@) || mkdir -pm 755 $(dir $@)
 	$(CC) $(CFLAGS) $(INC_FLAGS) -c $< -o $@
 
 $(OUT_DIRS)/%.S.o: %.S
+	@test -d $(dir $@) || mkdir -pm 755 $(dir $@)
 	$(CC) $(ASFLAGS) $(INC_FLAGS) -c $< -o $@
 
 $(LINK_OUT): $(LINK_SRC)
+	@test -d $(OUT_DIRS) || mkdir -pm 755 $(OUT_DIRS)
 	$(CXX) $(INC_FLAGS) -E -x c -P $< -o $@
-
-define make-dir
-	@test -d $(1) || mkdir -pm 755 $(1)
-endef
-make-build-dirs:
-	$(call make-dir,$(OUT_DIRS))
-	$(foreach d,$(dir $(OBJS)),$(call make-dir,$(d)))
 
 clean:
 	@$(RM) -r $(OUT_DIRS)
