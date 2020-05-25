@@ -37,7 +37,7 @@ $(OUT_DIRS)/%.S.o: %.S
 
 $(LINK_OUT): $(LINK_SRC)
 	@test -d $(OUT_DIRS) || mkdir -pm 755 $(OUT_DIRS)
-	$(CXX) $(INC_FLAGS) -E -x c -P $< -o $@
+	$(CXX) $(ASFLAGS) $(INC_FLAGS) -E -x c -P $< -o $@
 
 clean:
 	@$(RM) -r $(OUT_DIRS)
